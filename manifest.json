@@ -1,0 +1,13 @@
+{
+  "name": "GUYTIX SELLS PRO",
+  "short_name": "GUYTIX",
+  "description": "Sistema de Vendas GUYTIX",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#001a33",
+  "theme_color": "#FFD700",
+  "icons": [
+    {"src": "https://via.placeholder.com/192/FFD700/001a33?text=G", "sizes": "192x192", "type": "image/png"},
+    {"src": "https://via.placeholder.com/512/FFD700/001a33?text=G", "sizes": "512x512", "type": "image/png"}
+  ]
+}

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#001a33">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>GUYTIX SELLS PRO</title>
+<style>
+:root{--azul:#001a33;--dourado:#FFD700;--verde:#27ae60;--vermelho:#c0392b;--cinza:#555}
+*{box-sizing:border-box;font-family:system-ui,-apple-system}
+body{background:var(--azul);color:var(--dourado);padding:15px;margin:0}
+.card{background:#0d2847;padding:15px;border-radius:12px;margin:12px 0;border:2px solid var(--dourado)}
+button{width:100%;padding:14px;margin:6px 0;background:var(--dourado);color:var(--azul);border:0;border-radius:10px;font-weight:800;font-size:16px;cursor:pointer}
+button:active{opacity:0.8}
+input,select{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:2px solid var(--dourado);background:#000;color:#fff;font-size:16px}
+.hidden{display:none}
+.flex{display:flex;gap:8px}
+.item{padding:8px;border-bottom:1px dashed #555;display:flex;justify-content:space-between}
+.alerta{color:var(--vermelho);font-weight:bold}
+.total{font-size:22px;color:var(--verde);text-align:center;margin:10px 0}
+h1,h2,h3{margin:8px 0}
+@media print{body{background:#fff;color:#000}.no-print{display:none}}
+</style>
+</head>
+<body>
+
+<!-- TELA LOGIN -->
+<div id="telaLogin" class="card" style="max-width:400px;margin:50px auto">
+  <h1 style="text-align:center">🧱 GUYTIX SELLS</h1>
+  <input id="email" placeholder="Email" value="etiandrohelder@gmail.com" autocomplete="email">
+  <input id="senha" type="password" placeholder="Senha" autocomplete="current-password">
+  <select id="tipo"><option value="seller">Vendedor</option><option value="owner">Owner</option></select>
+  <button onclick="login()">ENTRAR</button>
+  <button onclick="sincronizar()" style="background:#27ae60;color:#fff">🔄 SINCRONIZAR NUVEM</button>
+  <p style="font-size:12px;text-align:center;margin-top:10px">Suporte > 939395569 // Express</p>
+</div>
+
+<!-- TELA APP -->
+<div id="telaApp" class="hidden">
+  <h1>GUYTIX SELLS <button class="no-print" style="width:auto;float:right;padding:6px 12px" onclick="logout()">SAIR</button></h1>
+  <p><b id="nomeLogado"></b> | <span id="tipoLogado"></span></p>
+
+  <!-- ABAS -->
+  <div class="flex no-print">
+    <button onclick="mostrarAba('vender')">VENDER</button>
+    <button onclick="mostrarAba('produtos')">PRODUTOS</button>
+    <button id="btnOwner" class="hidden" onclick="mostrarAba('owner')">OWNER</button>
+    <button onclick="mostrarAba('relatorios')">RELATÓRIOS</button>
+  </div>
+
+  <!-- ABA VENDER -->
+  <div id="abaVender" class="card">
+    <h2>VENDER</h2>
+    <div class="flex"><input id="codBarra" placeholder="Código de Barras"><button onclick="buscarCodBarra()" style="width:120px">BUSCAR</button></div>
+    <select id="produtoSelect"></select>
+    <div class="flex"><input id="qtd" type="number" value="1" min="1"><button onclick="addCarrinho()">+ CARRINHO</button></div>
+    <div id="carrinho"></div>
+    <div class="total">TOTAL: <span id="total">0</span> KZ</div>
+    <button onclick="finalizarVenda()">FINALIZAR E IMPRIMIR</button>
+  </div>
+
+  <!-- ABA PRODUTOS -->
+  <div id="abaProdutos" class="card hidden">
+    <h2>PRODUTOS</h2>
+    <input id="nomeProd" placeholder="Nome Produto">
+    <input id="precoProd" type="number" placeholder="Preço KZ">
+    <input id="codProd" placeholder="Código Barras">
+    <input id="stockProd" type="number" placeholder="Stock Atual">
+    <input id="stockMin" type="number" placeholder="Stock Mínimo">
+    <button onclick="addProduto()">SALVAR PRODUTO</button>
+    <div id="listaProdutos"></div>
+  </div>
+
+  <!-- ABA OWNER -->
+  <div id="abaOwner" class="card hidden">
+    <h2>OWNER - GESTÃO</h2>
+    <h3>Vendedores</h3>
+    <input id="nomeVend" placeholder="Nome Vendedor">
+    <input id="senhaVend" placeholder="Senha">
+    <button onclick="addVendedor()">ADD VENDEDOR</button>
+    <div id="listaVendedores"></div>
+    <button onclick="backupJSON()" style="background:var(--verde)">📥 BAIXAR BACKUP</button>
+  </div>
+
+  <!-- ABA RELATORIOS -->
+  <div id="abaRelatorios" class="card hidden">
+    <h2>RELATÓRIOS</h2>
+    <div class="flex">
+      <button onclick="gerarRelatorio('dia')">HOJE</button>
+      <button onclick="gerarRelatorio('semana')">SEMANA</button>
+      <button onclick="gerarRelatorio('mes')">MÊS</button>
+      <button onclick="gerarRelatorio('ano')">ANO</button>
+    </div>
+    <div id="resumoRelatorio"></div>
+  </div>
+</div>
+
+<!-- RECIBO IMPRESSAO -->
+<div id="recibo" style="display:none;background:#fff;color:#000;width:58mm;font-family:monospace;font-size:12px;padding:5px">
+  <h3 style="text-align:center">GUYTIX SELLS</h3>
+  <p id="reciboInfo"></p>
+  <div id="reciboItens"></div>
+  <h3 id="reciboTotal"></h3>
+  <p style="text-align:center">Obrigado! Volte Sempre</p>
+</div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBPUkoYLiME0XnJVYl7zlZq7AVZ2pjvKro",
+  authDomain: "guytix-sells.firebaseapp.com",
+  projectId: "guytix-sells",
+  storageBucket: "guytix-sells.firebasestorage.app",
+  messagingSenderId: "581695214857",
+  appId: "1:581695214857:web:89774d5eebc5530e7befd8",
+  measurementId: "G-ZC8E7LQT3N"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let dados = {lojaID:"GUYTIX001",produtos:[],vendedores:[{nome:"Admin",senha:"1234",tipo:"owner"},{nome:"Vendedor1",senha:"1111",tipo:"seller"}],todasVendas:[],carrinho:[],usuarioLogado:null};
+let abaAtual = 'vender';
+
+// CARREGAR
+function carregarLocal(){const s=localStorage.getItem('guytix_dados');if(s)dados=JSON.parse(s);}
+function salvarLocal(){localStorage.setItem('guytix_dados',JSON.stringify(dados));}
+carregarLocal();
+
+// LOGIN
+function login(){
+  const e=document.getElementById('email').value;
+  const s=document.getElementById('senha').value;
+  const t=document.getElementById('tipo').value;
+  const v=dados.vendedores.find(x=>x.senha===s && x.tipo===t);
+  if(v){dados.usuarioLogado=v;salvarLocal();document.getElementById('telaLogin').classList.add('hidden');document.getElementById('telaApp').classList.remove('hidden');document.getElementById('nomeLogado').innerText=v.nome;document.getElementById('tipoLogado').innerText=v.tipo;if(v.tipo==='owner')document.getElementById('btnOwner').classList.remove('hidden');renderTudo();}
+  else alert('Senha inválida');
+}
+function logout(){dados.usuarioLogado=null;salvarLocal();location.reload();}
+
+// ABAS
+function mostrarAba(aba){['vender','produtos','owner','relatorios'].forEach(a=>document.getElementById('aba'+a.charAt(0).toUpperCase()+a.slice(1)).classList.add('hidden'));document.getElementById('aba'+aba.charAt(0).toUpperCase()+aba.slice(1)).classList.remove('hidden');abaAtual=aba;renderTudo();}
+
+// PRODUTOS
+function renderProdutos(){
+  const div=document.getElementById('listaProdutos');div.innerHTML='';
+  dados.produtos.forEach((p,i)=>{
+    const alerta=p.stock<=p.stockMin?' class="alerta"':'';
+    div.innerHTML+=`<div class="item"><span>${p.nome} - ${p.preco}KZ ${alerta}[STOCK:${p.stock}]</span><button onclick="delProd(${i})" style="width:60px;background:var(--vermelho)">DEL</button></div>`;
+  });
+  const sel=document.getElementById('produtoSelect');sel.innerHTML=dados.produtos.map((p,i)=>`<option value="${i}">${p.nome} - ${p.preco}KZ</option>`).join('');
+}
+function addProduto(){
+  dados.produtos.push({nome:nomeProd.value,preco:+precoProd.value,codigo:codProd.value,stock:+stockProd.value,stockMin:+stockMin.value});
+  salvarLocal();sincronizar();renderProdutos();nomeProd.value=precoProd.value=codProd.value=stockProd.value=stockMin.value='';
+}
+function delProd(i){dados.produtos.splice(i,1);salvarLocal();sincronizar();renderProdutos();}
+
+// VENDER
+function addCarrinho(){
+  const p=dados.produtos[+produtoSelect.value];const q=+qtd.value;
+  dados.carrinho.push({...p,qtd:q,subtotal:p.preco*q});p.stock-=q;salvarLocal();renderCarrinho();
+}
+function renderCarrinho(){
+  const div=document.getElementById('carrinho');div.innerHTML='';let total=0;
+  dados.carrinho.forEach((i,idx)=>{total+=i.subtotal;div.innerHTML+=`<div class="item">${i.nome} x${i.qtd} = ${i.subtotal}KZ <button onclick="remItem(${idx})" style="width:50px">X</button></div>`});
+  document.getElementById('total').innerText=total;
+}
+function remItem(i){dados.carrinho[i].stock+=dados.carrinho[i].qtd;dados.carrinho.splice(i,1);salvarLocal();renderCarrinho();}
+function finalizarVenda(){
+  const venda={id:Date.now(),data:new Date().toISOString(),vendedor:dados.usuarioLogado.nome,itens:[...dados.carrinho],total:dados.carrinho.reduce((a,b)=>a+b.subtotal,0)};
+  dados.todasVendas.push(venda);dados.carrinho=[];salvarLocal();sincronizar();imprimirRecibo(venda);renderCarrinho();renderProdutos();
+}
+
+// IMPRESSAO TERMICA
+function imprimirRecibo(v){
+  reciboInfo.innerText=`Data:${new Date(v.data).toLocaleString()} Vendedor:${v.vendedor}`;
+  reciboItens.innerHTML=v.itens.map(i=>`${i.nome} x${i.qtd} ${i.subtotal}KZ`).join('<br>');
+  reciboTotal.innerText=`TOTAL: ${v.total} KZ`;
+  const w=window.open('','_blank');w.document.write(recibo.innerHTML);w.print();w.close();
+}
+
+// OWNER
+function renderVendedores(){
+  const div=document.getElementById('listaVendedores');div.innerHTML='';
+  dados.vendedores.forEach((v,i)=>{div.innerHTML+=`<div class="item">${v.nome} - ${v.tipo}</div>`});
+}
+function addVendedor(){dados.vendedores.push({nome:nomeVend.value,senha:senhaVend.value,tipo:'seller'});salvarLocal();sincronizar();renderVendedores();nomeVend.value=senhaVend.value='';}
+
+// RELATORIOS
+function gerarRelatorio(periodo){
+  const agora=new Date();let filtro=0;
+  if(periodo==='dia')filtro=agora.setHours(0,0,0,0);
+  if(periodo==='semana')filtro=agora.setDate(agora.getDate()-7);
+  if(periodo==='mes')filtro=agora.setMonth(agora.getMonth()-1);
+  if(periodo==='ano')filtro=agora.setFullYear(agora.getFullYear()-1);
+  const vendas=dados.todasVendas.filter(v=>new Date(v.data)>=filtro);
+  const total=vendas.reduce((a,b)=>a+b.total,0);
+  resumoRelatorio.innerHTML=`<h3>Vendas: ${vendas.length}</h3><h3 class="total">Faturamento: ${total} KZ</h3>`;
+}
+
+// FIREBASE SYNC
+async function sincronizar(){
+  try{
+    await db.collection('loja').doc(dados.lojaID).set(dados);
+    const snap=await db.collection('loja').doc(dados.lojaID).get();
+    if(snap.exists)dados=snap.data();salvarLocal();renderTudo();alert('Sincronizado!');
+  }catch(e){alert('Erro: '+e.message)}
+}
+
+// BACKUP
+function backupJSON(){
+  const blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='guytix_backup.json';a.click();
+}
+
+function renderTudo(){renderProdutos();renderVendedores();renderCarrinho();}
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}
+</script>
+</body>
+</html>
