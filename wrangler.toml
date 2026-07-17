@@ -1,0 +1,14 @@
+name = "guytix-license"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# Não são segredos, podem ficar aqui em texto normal:
+[vars]
+GCP_PROJECT_ID = "guytix-sells-db7b9"
+GCP_CLIENT_EMAIL = "PREENCHER_COM_O_EMAIL_DA_SERVICE_ACCOUNT"
+
+# Criado com: wrangler kv namespace create GUYTIX_KV
+# Depois cole o "id" que aparecer no lugar de PREENCHER_DEPOIS
+[[kv_namespaces]]
+binding = "GUYTIX_KV"
+id = "PREENCHER_DEPOIS"
