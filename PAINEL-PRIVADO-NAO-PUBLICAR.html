@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<title>GUYTIX SELLS — Painel Privado (NÃO PUBLICAR)</title>
+<style>
+body{background:#07111d;color:#eef3f8;font-family:Segoe UI,sans-serif;display:flex;justify-content:center;padding:60px 16px}
+.box{background:#0f2238;border:1px solid #1d3a5c;border-radius:16px;padding:28px;max-width:380px;width:100%}
+h1{color:#d4af37;font-size:18px;margin-bottom:4px}
+p{color:#8ea3bb;font-size:12.5px;margin-bottom:18px;line-height:1.5}
+label{display:block;font-size:12px;color:#8ea3bb;margin:10px 0 5px}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid #1d3a5c;background:#081522;color:#eef3f8;font-size:14px;box-sizing:border-box}
+button{width:100%;padding:13px;border:0;border-radius:10px;background:linear-gradient(135deg,#b8860b,#d4af37);color:#0a1420;font-weight:800;margin-top:14px;cursor:pointer}
+#out{margin-top:16px;font-size:26px;font-weight:900;color:#d4af37;letter-spacing:4px;text-align:center}
+#msg{margin-top:10px;font-size:12.5px;color:#ff8f80;text-align:center}
+.warn{background:rgba(192,57,43,.15);border:1px solid #c0392b;border-radius:10px;padding:10px;font-size:11.5px;color:#ff8f80;margin-bottom:16px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="warn">⚠️ NÃO faça upload deste ficheiro para o Netlify, GitHub Pages ou qualquer hospedagem pública. Guarde-o só no seu telemóvel. Ele é a única forma de gerar um código de renovação.</div>
+  <h1>🛠️ Painel Privado GUYTIX</h1>
+  <p>Gera o código de renovação de 6 dígitos de um negócio, depois de você confirmar o pagamento manualmente.</p>
+  <label>Telefone do negócio (o do admin, o mesmo usado no cadastro)</label>
+  <input id="phone" placeholder="9XXXXXXXX">
+  <label>Sua senha mestre</label>
+  <input id="pass" type="password" placeholder="Senha mestre">
+  <button onclick="gerar()">GERAR CÓDIGO</button>
+  <div id="out"></div>
+  <div id="msg"></div>
+</div>
+
+<script>
+// Troque pelo endereço do seu Worker depois de publicá-lo (PARTE 7 do LEIA-ME)
+const WORKER_URL = "https://guytix-license.SEU-SUBDOMINIO.workers.dev";
+
+async function gerar(){
+  const phone = document.getElementById('phone').value.trim();
+  const pass = document.getElementById('pass').value;
+  const out = document.getElementById('out');
+  const msg = document.getElementById('msg');
+  out.textContent = ''; msg.textContent = '';
+  if(!phone || !pass){ msg.textContent = 'Preencha telefone e senha mestre'; return; }
+  try{
+    const res = await fetch(WORKER_URL + '/generateRenewCode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, masterPass: pass })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Erro ao gerar código');
+    out.textContent = data.code;
+  }catch(e){
+    msg.textContent = e.message || 'Erro ao gerar código';
+  }
+}
+</script>
+</body>
+</html>

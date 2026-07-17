@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function bizDoc(bizId) {
+      return get(/databases/$(database)/documents/businesses/$(bizId));
+    }
+    function isMember(bizId) {
+      return isSignedIn() && request.auth.uid in bizDoc(bizId).data.membersMap;
+    }
+    function isAdmin(bizId) {
+      return isMember(bizId) && bizDoc(bizId).data.membersMap[request.auth.uid] == 'admin';
+    }
+    // Campos de licenciamento: NENHUM cliente (nem o admin) pode escrever
+    // aqui diretamente, nem pela UI nem pelo console do navegador.
+    // Só a Cloud Function (Admin SDK, que ignora estas regras) pode mudar isto.
+    function touchesLicenseFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['expiry', 'renewAttempts', 'renewWindowStart']);
+    }
+
+    match /uidIndex/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create: if isSignedIn() &&
+                      (request.auth.uid == uid || isAdmin(request.resource.data.bizId));
+      allow update: if false;
+      allow delete: if isAdmin(resource.data.bizId);
+    }
+
+    match /businesses/{bizId} {
+      allow get: if isMember(bizId);
+      allow list: if false;
+
+      // criação: só quando o negócio ainda não existe (fundador vira admin sozinho)
+      allow create: if isSignedIn()
+                      && request.resource.data.membersMap.size() == 1
+                      && request.resource.data.membersMap[request.auth.uid] == 'admin';
+
+      // admin pode alterar equipa/dados do negócio, MAS NUNCA os campos de licença
+      allow update: if isAdmin(bizId) && !touchesLicenseFields();
+
+      allow delete: if false;
+
+      match /users/{uid} {
+        allow read: if isMember(bizId);
+        allow create: if isAdmin(bizId) || (isSignedIn() && request.auth.uid == uid);
+        allow update: if isAdmin(bizId) || (isSignedIn() && request.auth.uid == uid);
+        allow delete: if isAdmin(bizId);
+      }
+
+      match /products/{pid} {
+        allow read: if isMember(bizId);
+        allow create, delete: if isAdmin(bizId);
+        allow update: if isMember(bizId) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']);
+      }
+
+      match /sales/{sid} {
+        allow read: if isMember(bizId);
+        allow create: if isMember(bizId) && request.resource.data.userUid == request.auth.uid;
+        allow update, delete: if isAdmin(bizId);
+      }
+    }
+
+    // Documento interno de rate-limit usado pela Cloud Function generateRenewCode.
+    // Ninguém no cliente lê ou escreve aqui — só o Admin SDK (que ignora regras).
+    match /_system/{doc} {
+      allow read, write: if false;
+    }
+  }
+}
